@@ -10,7 +10,7 @@ combining slow travel, dog-friendly nature stops, and astrophotography with
 a Seestar S30 smart telescope. The app must let the user plan a trip in
 detail before leaving (routes, overnight stops, packing list) and then keep
 using it *during* the trip from a phone to edit stops, check things off, and
-log a diary with photos.
+log a text diary (see §7 on why photos are deferred).
 
 The app is not single-trip: it must support creating new trips from scratch
 or by duplicating a previous one, so it stays useful after Cantabria.
@@ -68,9 +68,9 @@ trips/{tripId}
 
     journal/{entryId}
       text: string
-      photoUrls: string[]        // Firebase Storage download URLs
       stopId: string | null      // optional link to the stop it's about
       createdAt: timestamp
+      // no photoUrls in v1 — see §7, needs Blaze plan for Storage
 
   packingList/{itemId}
     text: string
@@ -81,8 +81,8 @@ trips/{tripId}
 Notes:
 - `stops` and `journal` are subcollections of `days`, not arrays on the day
   document, because they're independently edited (add/remove/reorder) and
-  can grow with photos — arrays on a parent doc would force rewriting the
-  whole day on every small edit.
+  could grow with photos later — arrays on a parent doc would force
+  rewriting the whole day on every small edit.
 - `packingList` is scoped per trip (not global), since gear needs differ per
   trip (e.g. Seestar accessories only apply to astro trips).
 - Duplicating a trip = a client-side action that reads a trip's full
@@ -107,9 +107,9 @@ Notes:
 - **`/trip/:id/lista` — Packing/shopping list**: checklist grouped by
   category (nevera/despensa/bebidas/equipo), matching the original
   NotebookLM sketch's shopping list and camper menu.
-- **Diary mode**: from any stop, add a journal entry (text + photos,
-  auto-timestamped). Journal entries show up in a simple chronological feed
-  on the trip dashboard.
+- **Diary mode**: add a text journal entry linked to a day, auto-timestamped
+  (no photos in v1 — see §7). Journal entries show up in a simple
+  chronological feed on the trip dashboard.
 
 ## 5. Visual Design
 
@@ -140,9 +140,9 @@ Approved direction: **"El Cuentakilómetros"** (the trip odometer).
 
 - **Frontend**: Vite + React (JavaScript, no TypeScript — keep this
   lightweight for a personal project), React Router for the two routes.
-- **Backend/data**: Firebase (Firestore for data, Firebase Storage for
-  journal photos, Firebase Authentication for Google Sign-In), Spark
-  (free) plan.
+- **Backend/data**: Firebase (Firestore for data, Firebase Authentication
+  for Google Sign-In), Spark (free) plan. No Firebase Storage in v1 (see
+  §7).
 - **Map**: Leaflet + OpenStreetMap tiles (no API key required).
 - **Hosting**: Vercel, connected to the `jcaboroca/VacationModeON` GitHub
   repo, auto-deploy on push to `main`.
@@ -155,6 +155,13 @@ Approved direction: **"El Cuentakilómetros"** (the trip odometer).
   browsers, but no App Store/Play Store distribution).
 - Weather integration, tide charts, or any third-party data feeds beyond
   the map tiles.
+- **Journal photos.** As of late 2024, Firebase requires the Blaze
+  (pay-as-you-go) plan to enable Storage at all, even for usage that stays
+  within the free tier. The user chose to stay on Spark rather than add a
+  billing account, so v1's journal is text-only. If the project later
+  upgrades to Blaze, reintroduce `photoUrls: string[]` on `journal/{entryId}`
+  and a `storage.rules` file scoped the same way as `firestore.rules`
+  (owner-email check on `journal/{tripId}/{dayId}/{entryId}/{fileName}`).
 
 ## 8. Testing Approach
 

@@ -11,8 +11,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
 import { buildTripDuplicate, computeTotalKm } from './tripMath'
 
 // ---- Trips ----------------------------------------------------------
@@ -131,39 +130,18 @@ export function listenJournal(tripId, dayId, callback) {
   })
 }
 
-export async function createJournalEntry(tripId, dayId, { text, stopId, photoFiles }) {
+// Text-only for now — photo uploads need Firebase Storage, which requires
+// the Blaze plan. Add photoUrls back here if the project upgrades later.
+export async function createJournalEntry(tripId, dayId, { text, stopId }) {
   const entryRef = await addDoc(collection(db, 'trips', tripId, 'days', dayId, 'journal'), {
     text: text || '',
     stopId: stopId || null,
-    photoUrls: [],
     createdAt: serverTimestamp(),
   })
-
-  if (photoFiles && photoFiles.length > 0) {
-    const photoUrls = await Promise.all(
-      photoFiles.map((file, index) =>
-        uploadJournalPhoto(tripId, dayId, entryRef.id, file, index)
-      )
-    )
-    await updateDoc(entryRef, { photoUrls })
-  }
-
   return entryRef.id
 }
 
-async function uploadJournalPhoto(tripId, dayId, entryId, file, index) {
-  const path = `journal/${tripId}/${dayId}/${entryId}/${index}-${file.name}`
-  const storageRef = ref(storage, path)
-  await uploadBytes(storageRef, file)
-  return getDownloadURL(storageRef)
-}
-
 export async function deleteJournalEntry(tripId, dayId, entry) {
-  if (entry.photoUrls?.length) {
-    await Promise.all(
-      entry.photoUrls.map((url) => deleteObject(ref(storage, url)).catch(() => {}))
-    )
-  }
   await deleteDoc(doc(db, 'trips', tripId, 'days', dayId, 'journal', entry.id))
 }
 

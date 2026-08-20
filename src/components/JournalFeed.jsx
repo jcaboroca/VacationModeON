@@ -30,13 +30,6 @@ export default function JournalFeed({ tripId, days }) {
         {allEntries.map((entry) => (
           <div key={entry.id} className="journal-entry">
             {entry.text ? <p>{entry.text}</p> : null}
-            {entry.photoUrls?.length ? (
-              <div className="journal-photos">
-                {entry.photoUrls.map((url) => (
-                  <img key={url} src={url} alt="" />
-                ))}
-              </div>
-            ) : null}
             <button type="button" className="journal-delete" onClick={() => deleteJournalEntry(tripId, entry.dayId, entry)}>
               Borrar
             </button>

@@ -5,16 +5,14 @@ export default function AddJournalEntry({ tripId, days }) {
   const [open, setOpen] = useState(false)
   const [dayId, setDayId] = useState('')
   const [text, setText] = useState('')
-  const [files, setFiles] = useState([])
   const [saving, setSaving] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
-    if (!dayId || (!text.trim() && files.length === 0)) return
+    if (!dayId || !text.trim()) return
     setSaving(true)
-    await createJournalEntry(tripId, dayId, { text: text.trim(), photoFiles: files })
+    await createJournalEntry(tripId, dayId, { text: text.trim() })
     setText('')
-    setFiles([])
     setSaving(false)
     setOpen(false)
   }
@@ -43,13 +41,7 @@ export default function AddJournalEntry({ tripId, days }) {
         onChange={(e) => setText(e.target.value)}
         placeholder="¿Qué ha pasado hoy?"
         rows={3}
-      />
-      <input
-        className="field"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => setFiles(Array.from(e.target.files))}
+        required
       />
       <div className="stop-card-actions">
         <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>
