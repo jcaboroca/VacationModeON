@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext'
 import { OWNER_EMAIL } from '../firebase'
 
 export default function Login({ wrongAccount }) {
-  const { signInWithGoogle, signOutUser } = useAuth()
+  const { signInWithGoogle, signOutUser, authError } = useAuth()
 
   return (
     <div className="login-screen">
@@ -25,9 +25,12 @@ export default function Login({ wrongAccount }) {
           </button>
         </>
       ) : (
-        <button className="login-button" onClick={signInWithGoogle}>
-          Arrancar con Google
-        </button>
+        <>
+          {authError ? <p className="login-error">{authError}</p> : null}
+          <button className="login-button" onClick={signInWithGoogle}>
+            Arrancar con Google
+          </button>
+        </>
       )}
     </div>
   )
