@@ -1,0 +1,71 @@
+:root {
+  --ink: #1b1f2a;
+  --ink-soft: #262c3b;
+  --concrete: #edeeea;
+  --phosphor: #8fe38a;
+  --rust: #c1642f;
+  --line: #3a4152;
+  --muted: #8a93a6;
+
+  /* Bortle scale, one stop per class (1-9), light-pollution-map colors */
+  --bortle-1: #14181f;
+  --bortle-2: #232c3d;
+  --bortle-3: #3b4a63;
+  --bortle-4: #4d6b8a;
+  --bortle-5: #6b8f5a;
+  --bortle-6: #a3a83e;
+  --bortle-7: #c79a3a;
+  --bortle-8: #d17a2e;
+  --bortle-9: #b33b3b;
+
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--concrete);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
