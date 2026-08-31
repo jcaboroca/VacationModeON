@@ -451,10 +451,125 @@
   margin-bottom: 12px;
   color: var(--concrete);
 }
+.day-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
 .day-stops {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.day-route {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--concrete);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-route-empty,
+.day-route-placeholder {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.day-route-placeholder {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+  padding: 0 10px;
+}
+.day-route-endpoints {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.day-route-metrics {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--phosphor);
+}
+.day-route-apply {
+  align-self: flex-start;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.day-route-link {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.field-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin: 0;
+}
+.stop-locator {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  cursor: default;
+}
+.stop-locator-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.stop-locator-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stop-locator-list button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: #c4c9d4;
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-align: left;
+  padding: 6px 8px;
+  width: 100%;
+  cursor: pointer;
+}
+.stop-locator-list button:hover {
+  border-color: var(--phosphor);
+}
+.stop-locator-retry {
+  align-self: flex-start;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .day-body {
+    flex-direction: column;
+  }
+  .day-route {
+    width: 100%;
+  }
 }
 .add-stop-toggle,
 .add-day-toggle {

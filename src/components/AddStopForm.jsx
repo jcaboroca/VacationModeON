@@ -12,8 +12,8 @@ export default function AddStopForm({ tripId, dayId, nextOrder }) {
     await createStop(tripId, dayId, {
       name: form.name,
       type: form.type,
-      lat: Number(form.lat),
-      lng: Number(form.lng),
+      lat: form.lat === '' ? null : Number(form.lat),
+      lng: form.lng === '' ? null : Number(form.lng),
       bortle: form.bortle === '' ? null : Number(form.bortle),
       order: nextOrder,
     })
@@ -56,8 +56,7 @@ export default function AddStopForm({ tripId, dayId, nextOrder }) {
           step="any"
           value={form.lat}
           onChange={(e) => setForm({ ...form, lat: e.target.value })}
-          placeholder="Latitud"
-          required
+          placeholder="Latitud (opcional)"
         />
         <input
           className="field"
@@ -65,10 +64,10 @@ export default function AddStopForm({ tripId, dayId, nextOrder }) {
           step="any"
           value={form.lng}
           onChange={(e) => setForm({ ...form, lng: e.target.value })}
-          placeholder="Longitud"
-          required
+          placeholder="Longitud (opcional)"
         />
       </div>
+      <p className="field-hint">Si las dejas vacías, se buscan por el nombre.</p>
       <input
         className="field"
         type="number"

@@ -3,9 +3,10 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { deleteDay, updateDay } from '../lib/firestore'
 import AddStopForm from './AddStopForm'
+import DayRouteCard from './DayRouteCard'
 import SortableStopCard from './SortableStopCard'
 
-export default function DayRow({ tripId, day, stops, cumulativeKm, onVisible }) {
+export default function DayRow({ tripId, day, stops, endpoints, near, cumulativeKm, onVisible }) {
   const [editingDay, setEditingDay] = useState(false)
   const [form, setForm] = useState({
     title: day.title || '',
@@ -94,16 +95,26 @@ export default function DayRow({ tripId, day, stops, cumulativeKm, onVisible }) 
           </div>
         )}
 
-        <div className={isOver ? 'day-stops is-drop-target' : 'day-stops'} ref={setNodeRef}>
-          <SortableContext
-            items={stops.map((stop) => stop.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {stops.map((stop) => (
-              <SortableStopCard key={stop.id} tripId={tripId} dayId={day.id} stop={stop} />
-            ))}
-          </SortableContext>
-          <AddStopForm tripId={tripId} dayId={day.id} nextOrder={stops.length} />
+        <div className="day-body">
+          <div className={isOver ? 'day-stops is-drop-target' : 'day-stops'} ref={setNodeRef}>
+            <SortableContext
+              items={stops.map((stop) => stop.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {stops.map((stop) => (
+                <SortableStopCard
+                  key={stop.id}
+                  tripId={tripId}
+                  dayId={day.id}
+                  stop={stop}
+                  near={near}
+                />
+              ))}
+            </SortableContext>
+            <AddStopForm tripId={tripId} dayId={day.id} nextOrder={stops.length} />
+          </div>
+
+          <DayRouteCard tripId={tripId} day={day} endpoints={endpoints} />
         </div>
       </div>
     </div>

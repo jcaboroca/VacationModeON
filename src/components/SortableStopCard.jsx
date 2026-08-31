@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import StopCard from './StopCard'
 
-export default function SortableStopCard({ tripId, dayId, stop }) {
+export default function SortableStopCard({ tripId, dayId, stop, near }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: stop.id,
   })
@@ -17,6 +17,8 @@ export default function SortableStopCard({ tripId, dayId, stop }) {
         tripId={tripId}
         dayId={dayId}
         stop={stop}
+        near={near}
+        canLocate
         dragHandleProps={{ ...attributes, ...listeners }}
       />
     </div>

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { deleteStop, updateStop } from '../lib/firestore'
+import { hasCoords } from '../lib/geo'
 import BortleGauge from './BortleGauge'
+import StopLocator from './StopLocator'
 
 const TYPE_LABELS = {
   free_camp: 'Pernocta libre',
@@ -13,7 +15,7 @@ function emptyToNull(value) {
   return value === '' ? null : value
 }
 
-export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
+export default function StopCard({ tripId, dayId, stop, dragHandleProps, near, canLocate }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(() => toForm(stop))
 
@@ -40,8 +42,8 @@ export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
     await updateStop(tripId, dayId, stop.id, {
       name: form.name,
       type: form.type,
-      lat: Number(form.lat),
-      lng: Number(form.lng),
+      lat: emptyToNull(form.lat) === null ? null : Number(form.lat),
+      lng: emptyToNull(form.lng) === null ? null : Number(form.lng),
       bortle: emptyToNull(form.bortle) === null ? null : Number(form.bortle),
       altitude: emptyToNull(form.altitude) === null ? null : Number(form.altitude),
       notes: form.notes,
@@ -87,8 +89,7 @@ export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
             step="any"
             value={form.lat}
             onChange={(e) => setForm({ ...form, lat: e.target.value })}
-            placeholder="Latitud"
-            required
+            placeholder="Latitud (opcional)"
           />
           <input
             className="field"
@@ -96,10 +97,10 @@ export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
             step="any"
             value={form.lng}
             onChange={(e) => setForm({ ...form, lng: e.target.value })}
-            placeholder="Longitud"
-            required
+            placeholder="Longitud (opcional)"
           />
         </div>
+        <p className="field-hint">Si las dejas vacías, se buscan por el nombre.</p>
         <div className="field-row">
           <input
             className="field"
@@ -163,10 +164,18 @@ export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
         ) : null}
       </div>
       <div className="stop-card-name">{stop.name}</div>
-      <div className="stop-card-coord">
-        {stop.lat}, {stop.lng}
-        {stop.altitude ? ` · ${stop.altitude} m alt.` : ''}
-      </div>
+      {hasCoords(stop) ? (
+        <div className="stop-card-coord">
+          {stop.lat}, {stop.lng}
+          {stop.altitude ? ` · ${stop.altitude} m alt.` : ''}
+        </div>
+      ) : canLocate ? (
+        <StopLocator
+          stop={stop}
+          near={near}
+          onPick={(place) => updateStop(tripId, dayId, stop.id, { lat: place.lat, lng: place.lng })}
+        />
+      ) : null}
       <BortleGauge value={stop.bortle} />
       {stop.notes ? <p className="stop-card-notes">{stop.notes}</p> : null}
       {stop.tags?.length ? (

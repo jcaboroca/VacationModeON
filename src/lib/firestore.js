@@ -76,6 +76,10 @@ export async function updateDay(tripId, dayId, data) {
   if ('distanceKm' in data) await recomputeTotalKm(tripId)
 }
 
+export async function saveDayRoute(tripId, dayId, route) {
+  await updateDoc(doc(db, 'trips', tripId, 'days', dayId), { route })
+}
+
 async function deleteDayCascade(tripId, dayId) {
   const stopsSnap = await getDocs(collection(db, 'trips', tripId, 'days', dayId, 'stops'))
   await Promise.all(stopsSnap.docs.map((d) => deleteDoc(d.ref)))
