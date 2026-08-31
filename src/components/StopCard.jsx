@@ -13,7 +13,7 @@ function emptyToNull(value) {
   return value === '' ? null : value
 }
 
-export default function StopCard({ tripId, dayId, stop }) {
+export default function StopCard({ tripId, dayId, stop, dragHandleProps }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(() => toForm(stop))
 
@@ -150,6 +150,17 @@ export default function StopCard({ tripId, dayId, stop }) {
     <div className="stop-card" onClick={startEditing}>
       <div className="stop-card-head">
         <span className="stop-card-type">{TYPE_LABELS[stop.type] || stop.type}</span>
+        {dragHandleProps ? (
+          <button
+            type="button"
+            className="stop-drag-handle"
+            aria-label={`Mover ${stop.name}`}
+            onClick={(e) => e.stopPropagation()}
+            {...dragHandleProps}
+          >
+            ⠿
+          </button>
+        ) : null}
       </div>
       <div className="stop-card-name">{stop.name}</div>
       <div className="stop-card-coord">

@@ -10,6 +10,8 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  where,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { buildTripDuplicate, computeTotalKm } from './tripMath'
@@ -119,6 +121,55 @@ export async function updateStop(tripId, dayId, stopId, data) {
 
 export async function deleteStop(tripId, dayId, stopId) {
   await deleteDoc(doc(db, 'trips', tripId, 'days', dayId, 'stops', stopId))
+}
+
+function stopRef(tripId, dayId, stopId) {
+  return doc(db, 'trips', tripId, 'days', dayId, 'stops', stopId)
+}
+
+/**
+ * Persists a drag-and-drop move in one batch: renumbers `order` in every day
+ * involved and, when the stop changes day, recreates it (same id) under the
+ * destination and drags its journal entries along.
+ */
+export async function persistStopMove(
+  tripId,
+  { stopId, fromDayId, toDayId, sourceStops, destinationStops }
+) {
+  const batch = writeBatch(db)
+
+  if (fromDayId === toDayId) {
+    destinationStops.forEach((stop, index) => {
+      batch.update(stopRef(tripId, toDayId, stop.id), { order: index })
+    })
+    await batch.commit()
+    return
+  }
+
+  const { id: _movedId, ...movedData } = destinationStops.find((stop) => stop.id === stopId)
+  const linkedJournal = await getDocs(
+    query(
+      collection(db, 'trips', tripId, 'days', fromDayId, 'journal'),
+      where('stopId', '==', stopId)
+    )
+  )
+
+  batch.set(stopRef(tripId, toDayId, stopId), movedData)
+  batch.delete(stopRef(tripId, fromDayId, stopId))
+
+  destinationStops.forEach((stop, index) => {
+    if (stop.id !== stopId) batch.update(stopRef(tripId, toDayId, stop.id), { order: index })
+  })
+  sourceStops.forEach((stop, index) => {
+    batch.update(stopRef(tripId, fromDayId, stop.id), { order: index })
+  })
+
+  linkedJournal.docs.forEach((entry) => {
+    batch.set(doc(db, 'trips', tripId, 'days', toDayId, 'journal', entry.id), entry.data())
+    batch.delete(entry.ref)
+  })
+
+  await batch.commit()
 }
 
 // ---- Journal --------------------------------------------------------------

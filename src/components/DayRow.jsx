@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { deleteDay, listenStops, updateDay } from '../lib/firestore'
+import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { deleteDay, updateDay } from '../lib/firestore'
 import AddStopForm from './AddStopForm'
-import StopCard from './StopCard'
+import SortableStopCard from './SortableStopCard'
 
-export default function DayRow({ tripId, day, cumulativeKm, onVisible }) {
-  const [stops, setStops] = useState([])
+export default function DayRow({ tripId, day, stops, cumulativeKm, onVisible }) {
   const [editingDay, setEditingDay] = useState(false)
   const [form, setForm] = useState({
     title: day.title || '',
@@ -12,8 +13,7 @@ export default function DayRow({ tripId, day, cumulativeKm, onVisible }) {
     notes: day.notes || '',
   })
   const rowRef = useRef(null)
-
-  useEffect(() => listenStops(tripId, day.id, setStops), [tripId, day.id])
+  const { setNodeRef, isOver } = useDroppable({ id: day.id })
 
   useEffect(() => {
     if (!onVisible || !rowRef.current) return
@@ -94,10 +94,15 @@ export default function DayRow({ tripId, day, cumulativeKm, onVisible }) {
           </div>
         )}
 
-        <div className="day-stops">
-          {stops.map((stop) => (
-            <StopCard key={stop.id} tripId={tripId} dayId={day.id} stop={stop} />
-          ))}
+        <div className={isOver ? 'day-stops is-drop-target' : 'day-stops'} ref={setNodeRef}>
+          <SortableContext
+            items={stops.map((stop) => stop.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {stops.map((stop) => (
+              <SortableStopCard key={stop.id} tripId={tripId} dayId={day.id} stop={stop} />
+            ))}
+          </SortableContext>
           <AddStopForm tripId={tripId} dayId={day.id} nextOrder={stops.length} />
         </div>
       </div>

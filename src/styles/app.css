@@ -166,7 +166,46 @@
   cursor: pointer;
 }
 .stop-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 6px;
+}
+.stop-drag-handle {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 5px 8px;
+  cursor: grab;
+  touch-action: none;
+}
+.stop-drag-handle:focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+}
+.stop-drag-handle:active {
+  cursor: grabbing;
+}
+.stop-sortable.is-dragging {
+  opacity: 0.35;
+}
+.day-stops.is-drop-target {
+  outline: 1px dashed var(--phosphor);
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+.drag-error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #e0946a;
+  border: 1px solid var(--rust);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
 }
 .stop-card-type {
   font-family: var(--font-mono);
