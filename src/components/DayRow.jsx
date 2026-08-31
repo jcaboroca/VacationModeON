@@ -6,7 +6,7 @@ import AddStopForm from './AddStopForm'
 import DayRouteCard from './DayRouteCard'
 import SortableStopCard from './SortableStopCard'
 
-export default function DayRow({ tripId, day, stops, endpoints, near, cumulativeKm, onVisible }) {
+export default function DayRow({ tripId, day, stops, waypoints, near, cumulativeKm, onVisible }) {
   const [editingDay, setEditingDay] = useState(false)
   const [form, setForm] = useState({
     title: day.title || '',
@@ -114,7 +114,7 @@ export default function DayRow({ tripId, day, stops, endpoints, near, cumulative
             <AddStopForm tripId={tripId} dayId={day.id} nextOrder={stops.length} />
           </div>
 
-          <DayRouteCard tripId={tripId} day={day} endpoints={endpoints} />
+          <DayRouteCard tripId={tripId} day={day} waypoints={waypoints} />
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { createDay, listenStops, persistStopMove } from '../lib/firestore'
-import { routeEndpoints } from '../lib/dayRoute'
+import { routeWaypoints } from '../lib/dayRoute'
 import { hasCoords } from '../lib/geo'
 import { findStopDay, moveStop } from '../lib/stopOrder'
 import DayRow from './DayRow'
@@ -151,7 +151,7 @@ export default function DayRail({ tripId, days, onVisibleKmChange }) {
     const located = (stopsByDay[day.id] || []).filter(hasCoords)
     const near = located[located.length - 1] || anchor
     if (located.length) anchor = located[located.length - 1]
-    return { day, cumulativeKm, near, endpoints: routeEndpoints(days, stopsByDay, index) }
+    return { day, cumulativeKm, near, waypoints: routeWaypoints(days, stopsByDay, index) }
   })
 
   async function submit(e) {
@@ -185,13 +185,13 @@ export default function DayRail({ tripId, days, onVisibleKmChange }) {
           </p>
         ) : null}
 
-        {rows.map(({ day, cumulativeKm, endpoints, near }) => (
+        {rows.map(({ day, cumulativeKm, waypoints, near }) => (
           <DayRow
             key={day.id}
             tripId={tripId}
             day={day}
             stops={stopsByDay[day.id] || []}
-            endpoints={endpoints}
+            waypoints={waypoints}
             near={near}
             cumulativeKm={cumulativeKm}
             onVisible={onVisibleKmChange}

@@ -5,8 +5,9 @@ import {
   formatDuration,
   isRouteStale,
   parseOsrmRoute,
-  routeEndpoints,
   routeSignature,
+  routeWaypoints,
+  unflattenCoords,
 } from './dayRoute'
 
 const days = [{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }]
@@ -25,54 +26,63 @@ function stops() {
   }
 }
 
-describe('routeEndpoints', () => {
-  it('chains from the previous day last located stop', () => {
-    const result = routeEndpoints(days, stops(), 1)
-    expect(result.from.id).toBe('b')
-    expect(result.to.id).toBe('d')
+describe('routeWaypoints', () => {
+  it('threads through every located stop of the day', () => {
+    const full = stops()
+    full.d2.push({ id: 'y', name: 'Orbaneja', lat: 42.83, lng: -3.79 })
+    expect(routeWaypoints(days, full, 1).map((s) => s.id)).toEqual(['b', 'd', 'y'])
   })
 
-  it('ignores stops without coordinates when picking the destination', () => {
-    const withTrailingBlank = stops()
-    withTrailingBlank.d2.push({ id: 'x', name: 'Pendiente', lat: null, lng: null })
-    expect(routeEndpoints(days, withTrailingBlank, 1).to.id).toBe('d')
+  it('starts where the previous day left off', () => {
+    expect(routeWaypoints(days, stops(), 1)[0].id).toBe('b')
   })
 
-  it('falls back to first and last stop of the same day when there is no previous day', () => {
-    const result = routeEndpoints(days, stops(), 0)
-    expect(result.from.id).toBe('a')
-    expect(result.to.id).toBe('b')
+  it('drops stops without coordinates', () => {
+    expect(routeWaypoints(days, stops(), 1).map((s) => s.id)).toEqual(['b', 'd'])
+  })
+
+  it('uses only its own stops when there is no previous day', () => {
+    expect(routeWaypoints(days, stops(), 0).map((s) => s.id)).toEqual(['a', 'b'])
   })
 
   it('skips previous days that have no located stops', () => {
     const sparse = { d1: [{ id: 'a', name: 'Begues', lat: 41.33, lng: 1.93 }], d2: [], d3: stops().d3 }
-    expect(routeEndpoints(days, sparse, 2).from.id).toBe('a')
+    expect(routeWaypoints(days, sparse, 2)[0].id).toBe('a')
   })
 
   it('returns null when the day has no located stop', () => {
-    expect(routeEndpoints(days, { d1: [], d2: [], d3: [] }, 2)).toBe(null)
+    expect(routeWaypoints(days, { d1: [], d2: [], d3: [] }, 2)).toBe(null)
   })
 
-  it('returns null when the only located stop is the destination itself', () => {
-    expect(routeEndpoints(days, { d1: [{ id: 'a', lat: 41.3, lng: 1.9 }] }, 0)).toBe(null)
+  it('returns null when a first day has a single stop', () => {
+    expect(routeWaypoints(days, { d1: [{ id: 'a', lat: 41.3, lng: 1.9 }] }, 0)).toBe(null)
   })
 })
 
 describe('isRouteStale', () => {
-  const endpoints = { from: { id: 'b', lat: 42.06, lng: -1.6 }, to: { id: 'd', lat: 42.9, lng: -3.9 } }
+  const waypoints = [
+    { id: 'b', lat: 42.06, lng: -1.6 },
+    { id: 'd', lat: 42.9, lng: -3.9 },
+  ]
 
   it('is stale when there is no cached route', () => {
-    expect(isRouteStale(null, endpoints)).toBe(true)
+    expect(isRouteStale(null, waypoints)).toBe(true)
   })
 
   it('is fresh when the signature still matches', () => {
-    expect(isRouteStale({ signature: routeSignature(endpoints) }, endpoints)).toBe(false)
+    expect(isRouteStale({ signature: routeSignature(waypoints) }, waypoints)).toBe(false)
   })
 
-  it('is stale after an endpoint coordinate changes', () => {
-    const cached = { signature: routeSignature(endpoints) }
-    const moved = { ...endpoints, to: { id: 'd', lat: 43.0, lng: -3.9 } }
+  it('is stale after a waypoint coordinate changes', () => {
+    const cached = { signature: routeSignature(waypoints) }
+    const moved = [waypoints[0], { id: 'd', lat: 43.0, lng: -3.9 }]
     expect(isRouteStale(cached, moved)).toBe(true)
+  })
+
+  it('is stale after an intermediate stop is inserted', () => {
+    const cached = { signature: routeSignature(waypoints) }
+    const longer = [waypoints[0], { id: 'z', lat: 42.6, lng: -3.1 }, waypoints[1]]
+    expect(isRouteStale(cached, longer)).toBe(true)
   })
 
   it('is not stale when there is nothing to route', () => {
@@ -105,6 +115,10 @@ describe('parseOsrmRoute', () => {
         distance: 123456,
         duration: 7260,
         geometry: { coordinates: [[-1.6, 42.06], [-3.9, 42.9]] },
+        legs: [
+          { distance: 41000, duration: 2400 },
+          { distance: 82456, duration: 4860 },
+        ],
       },
     ],
   }
@@ -117,8 +131,15 @@ describe('parseOsrmRoute', () => {
     expect(parseOsrmRoute(payload).durationMin).toBe(121)
   })
 
-  it('flips GeoJSON lng/lat into Leaflet lat/lng', () => {
-    expect(parseOsrmRoute(payload).coords).toEqual([[42.06, -1.6], [42.9, -3.9]])
+  it('flattens the polyline because Firestore rejects nested arrays', () => {
+    expect(parseOsrmRoute(payload).coords).toEqual([42.06, -1.6, 42.9, -3.9])
+  })
+
+  it('keeps one entry per stop-to-stop leg', () => {
+    expect(parseOsrmRoute(payload).legs).toEqual([
+      { distanceKm: 41, durationMin: 40 },
+      { distanceKm: 82.5, durationMin: 81 },
+    ])
   })
 
   it('returns null when the service found no route', () => {
@@ -126,18 +147,37 @@ describe('parseOsrmRoute', () => {
   })
 })
 
-describe('url builders', () => {
-  const from = { lat: 42.06, lng: -1.6 }
-  const to = { lat: 42.9, lng: -3.9 }
+describe('unflattenCoords', () => {
+  it('rebuilds Leaflet lat/lng pairs', () => {
+    expect(unflattenCoords([42.06, -1.6, 42.9, -3.9])).toEqual([[42.06, -1.6], [42.9, -3.9]])
+  })
 
-  it('asks OSRM for full geojson geometry in lng,lat order', () => {
-    expect(buildOsrmUrl(from, to)).toBe(
-      'https://router.project-osrm.org/route/v1/driving/-1.6,42.06;-3.9,42.9?overview=full&geometries=geojson'
+  it('survives a missing polyline', () => {
+    expect(unflattenCoords(undefined)).toEqual([])
+  })
+})
+
+describe('url builders', () => {
+  const waypoints = [
+    { lat: 42.06, lng: -1.6 },
+    { lat: 42.64, lng: -3.1 },
+    { lat: 42.9, lng: -3.9 },
+  ]
+
+  it('asks OSRM for every waypoint in lng,lat order', () => {
+    expect(buildOsrmUrl(waypoints)).toBe(
+      'https://router.project-osrm.org/route/v1/driving/-1.6,42.06;-3.1,42.64;-3.9,42.9?overview=simplified&geometries=geojson'
     )
   })
 
-  it('builds a keyless Google Maps directions link', () => {
-    expect(buildDirectionsUrl(from, to)).toBe(
+  it('passes intermediate stops to Google Maps as waypoints', () => {
+    expect(buildDirectionsUrl(waypoints)).toBe(
+      'https://www.google.com/maps/dir/?api=1&origin=42.06%2C-1.6&destination=42.9%2C-3.9&travelmode=driving&waypoints=42.64%2C-3.1'
+    )
+  })
+
+  it('omits the waypoints parameter for a single leg', () => {
+    expect(buildDirectionsUrl([waypoints[0], waypoints[2]])).toBe(
       'https://www.google.com/maps/dir/?api=1&origin=42.06%2C-1.6&destination=42.9%2C-3.9&travelmode=driving'
     )
   })

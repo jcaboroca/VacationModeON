@@ -1,6 +1,6 @@
 /**
- * Per-day driving leg: which stops it connects, how it is cached, and the
- * keyless URLs used to route it (OSRM) and hand it over to Google Maps.
+ * Per-day driving route: which stops it threads through, how it is cached, and
+ * the keyless URLs used to route it (OSRM) and hand it over to Google Maps.
  */
 import { hasCoords } from './geo'
 
@@ -9,33 +9,30 @@ function locatedStops(stops) {
 }
 
 /**
- * The leg of `days[index]`: from where the trip slept last (the previous day's
- * last located stop) to that day's last located stop. The first day, having no
- * previous one, falls back to its own first and last located stops.
- * @returns {{ from: object, to: object }|null}
+ * Every located stop of `days[index]`, in order, preceded by where the trip
+ * slept (the previous day's last located stop) so the legs chain together.
+ * @returns {object[]|null} at least two stops, or null when there is nothing to route
  */
-export function routeEndpoints(days, stopsByDay, index) {
+export function routeWaypoints(days, stopsByDay, index) {
   const own = locatedStops(stopsByDay[days[index].id])
-  const to = own[own.length - 1]
-  if (!to) return null
+  if (!own.length) return null
 
   for (let i = index - 1; i >= 0; i -= 1) {
     const previous = locatedStops(stopsByDay[days[i].id])
-    const from = previous[previous.length - 1]
-    if (from) return { from, to }
+    const start = previous[previous.length - 1]
+    if (start) return [start, ...own]
   }
 
-  const from = own[0]
-  return from && from.id !== to.id ? { from, to } : null
+  return own.length > 1 ? own : null
 }
 
-export function routeSignature({ from, to }) {
-  return `${from.id}:${from.lat},${from.lng}>${to.id}:${to.lat},${to.lng}`
+export function routeSignature(waypoints) {
+  return waypoints.map((stop) => `${stop.id}:${stop.lat},${stop.lng}`).join('>')
 }
 
-export function isRouteStale(route, endpoints) {
-  if (!endpoints) return false
-  return !route || route.signature !== routeSignature(endpoints)
+export function isRouteStale(route, waypoints) {
+  if (!waypoints) return false
+  return !route || route.signature !== routeSignature(waypoints)
 }
 
 export function formatDuration(minutes) {
@@ -45,32 +42,55 @@ export function formatDuration(minutes) {
   return hours ? `${hours} h ${total % 60} min` : `${total} min`
 }
 
-export function buildOsrmUrl(from, to) {
-  return `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+// `simplified` keeps the polyline near 30 points instead of ~8000: this cache
+// lives inside the day document and travels on every snapshot.
+export function buildOsrmUrl(waypoints) {
+  const path = waypoints.map((stop) => `${stop.lng},${stop.lat}`).join(';')
+  return `https://router.project-osrm.org/route/v1/driving/${path}?overview=simplified&geometries=geojson`
+}
+
+function toKm(metres) {
+  return Math.round(metres / 100) / 10
 }
 
 export function parseOsrmRoute(payload) {
   const route = payload?.routes?.[0]
   if (!route) return null
   return {
-    distanceKm: Math.round(route.distance / 100) / 10,
+    distanceKm: toKm(route.distance),
     durationMin: Math.round(route.duration / 60),
-    coords: (route.geometry?.coordinates || []).map(([lng, lat]) => [lat, lng]),
+    // Firestore rejects nested arrays, so the polyline is stored flat.
+    coords: (route.geometry?.coordinates || []).flatMap(([lng, lat]) => [lat, lng]),
+    legs: (route.legs || []).map((leg) => ({
+      distanceKm: toKm(leg.distance),
+      durationMin: Math.round(leg.duration / 60),
+    })),
   }
 }
 
-export function buildDirectionsUrl(from, to) {
+export function unflattenCoords(flat) {
+  const pairs = []
+  for (let i = 0; i + 1 < (flat?.length || 0); i += 2) pairs.push([flat[i], flat[i + 1]])
+  return pairs
+}
+
+export function buildDirectionsUrl(waypoints) {
+  const last = waypoints[waypoints.length - 1]
   const params = new URLSearchParams({
     api: '1',
-    origin: `${from.lat},${from.lng}`,
-    destination: `${to.lat},${to.lng}`,
+    origin: `${waypoints[0].lat},${waypoints[0].lng}`,
+    destination: `${last.lat},${last.lng}`,
     travelmode: 'driving',
   })
+  const middle = waypoints.slice(1, -1)
+  if (middle.length) {
+    params.set('waypoints', middle.map((stop) => `${stop.lat},${stop.lng}`).join('|'))
+  }
   return `https://www.google.com/maps/dir/?${params}`
 }
 
-export async function fetchRoute(from, to) {
-  const response = await fetch(buildOsrmUrl(from, to))
+export async function fetchRoute(waypoints) {
+  const response = await fetch(buildOsrmUrl(waypoints))
   if (!response.ok) throw new Error(`Routing failed with ${response.status}`)
   return parseOsrmRoute(await response.json())
 }

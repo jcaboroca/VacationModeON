@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleMarker, MapContainer, Polyline, TileLayer } from 'react-leaflet'
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   buildDirectionsUrl,
@@ -7,15 +7,16 @@ import {
   formatDuration,
   isRouteStale,
   routeSignature,
+  unflattenCoords,
 } from '../lib/dayRoute'
 import { saveDayRoute, updateDay } from '../lib/firestore'
 
-export default function DayRouteCard({ tripId, day, endpoints }) {
+export default function DayRouteCard({ tripId, day, waypoints }) {
   const [visible, setVisible] = useState(false)
   const [failed, setFailed] = useState(false)
   const boxRef = useRef(null)
   const route = day.route
-  const signature = useMemo(() => (endpoints ? routeSignature(endpoints) : null), [endpoints])
+  const signature = useMemo(() => (waypoints ? routeSignature(waypoints) : null), [waypoints])
 
   // The public routing service is only worth calling for legs the user reaches.
   useEffect(() => {
@@ -31,10 +32,10 @@ export default function DayRouteCard({ tripId, day, endpoints }) {
   }, [visible])
 
   useEffect(() => {
-    if (!visible || !endpoints || !isRouteStale(route, endpoints)) return
+    if (!visible || !waypoints || !isRouteStale(route, waypoints)) return
     let cancelled = false
     setFailed(false)
-    fetchRoute(endpoints.from, endpoints.to)
+    fetchRoute(waypoints)
       .then((result) => {
         if (cancelled) return
         if (!result) {
@@ -44,11 +45,11 @@ export default function DayRouteCard({ tripId, day, endpoints }) {
         return saveDayRoute(tripId, day.id, {
           ...result,
           signature,
-          fromName: endpoints.from.name || '',
-          toName: endpoints.to.name || '',
+          names: waypoints.map((stop) => stop.name || ''),
         })
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Day route failed', error)
         if (!cancelled) setFailed(true)
       })
     return () => {
@@ -56,35 +57,40 @@ export default function DayRouteCard({ tripId, day, endpoints }) {
     }
   }, [visible, signature, route?.signature, tripId, day.id])
 
-  if (!endpoints) {
+  if (!waypoints) {
     return (
       <aside className="day-route day-route-empty" ref={boxRef}>
-        Añade dos paradas con ubicación para ver el tramo.
+        Añade dos paradas con ubicación para ver el recorrido.
       </aside>
     )
   }
 
   const fresh = route && route.signature === signature
+  const coords = fresh ? unflattenCoords(route.coords) : []
   const routedKm = fresh ? route.distanceKm : null
   const showApplyKm = routedKm !== null && Math.round(routedKm) !== Math.round(Number(day.distanceKm) || 0)
 
   return (
     <aside className="day-route" ref={boxRef}>
-      {fresh && route.coords?.length ? (
+      {coords.length ? (
         <MapContainer
-          bounds={route.coords}
+          bounds={coords}
           scrollWheelZoom={false}
           attributionControl={false}
-          style={{ height: '150px', width: '100%', borderRadius: '10px' }}
+          style={{ height: '170px', width: '100%', borderRadius: '10px' }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Polyline positions={route.coords} color="#8fe38a" weight={3} opacity={0.8} />
-          <CircleMarker center={route.coords[0]} radius={5} pathOptions={{ color: '#8fe38a' }} />
-          <CircleMarker
-            center={route.coords[route.coords.length - 1]}
-            radius={5}
-            pathOptions={{ color: '#c1642f' }}
-          />
+          <Polyline positions={coords} color="#8fe38a" weight={3} opacity={0.8} />
+          {waypoints.map((stop, i) => (
+            <CircleMarker
+              key={stop.id}
+              center={[stop.lat, stop.lng]}
+              radius={5}
+              pathOptions={{ color: i === waypoints.length - 1 ? '#c1642f' : '#8fe38a' }}
+            >
+              <Tooltip>{stop.name}</Tooltip>
+            </CircleMarker>
+          ))}
         </MapContainer>
       ) : (
         <div className="day-route-placeholder">
@@ -92,9 +98,22 @@ export default function DayRouteCard({ tripId, day, endpoints }) {
         </div>
       )}
 
-      <div className="day-route-endpoints">
-        {endpoints.from.name} → {endpoints.to.name}
-      </div>
+      <ol className="day-route-legs">
+        {waypoints.slice(1).map((stop, i) => {
+          const leg = fresh ? route.legs?.[i] : null
+          return (
+            <li key={stop.id}>
+              <span className="day-route-leg-name">
+                {waypoints[i].name} → {stop.name}
+              </span>
+              <span className="day-route-leg-metrics">
+                {leg ? `${leg.distanceKm} km · ${formatDuration(leg.durationMin)}` : '—'}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+
       <div className="day-route-metrics">
         <span>{routedKm !== null ? `${routedKm} km` : '—'}</span>
         <span>{formatDuration(fresh ? route.durationMin : null)}</span>
@@ -112,7 +131,7 @@ export default function DayRouteCard({ tripId, day, endpoints }) {
 
       <a
         className="day-route-link"
-        href={buildDirectionsUrl(endpoints.from, endpoints.to)}
+        href={buildDirectionsUrl(waypoints)}
         target="_blank"
         rel="noreferrer"
       >

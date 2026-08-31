@@ -496,6 +496,30 @@
   font-size: 13px;
   line-height: 1.4;
 }
+.day-route-legs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.day-route-legs li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+}
+.day-route-leg-name {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.day-route-leg-metrics {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
 .day-route-metrics {
   display: flex;
   justify-content: space-between;
